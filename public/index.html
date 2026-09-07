@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kovaak's Aim Tracker</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header><div><p class="eyebrow">KOVAAK'S LOCAL STATS</p><h1>Aim tracker</h1><p id="source">Loading your records…</p></div><button id="refresh">Refresh records</button></header>
+    <section class="controls"><div class="filters"><label>Scenario <select id="scenario"><option value="">All scenarios</option></select></label><div class="date-filter" role="group" aria-label="Date range"><button class="active" data-period="all">All time</button><button data-period="today">Today</button><button data-period="yesterday">Yesterday</button></div></div><span id="run-count"></span></section>
+    <section class="cards" id="cards"></section>
+    <section class="panel"><div class="panel-title"><h2>Score trend</h2><span id="trend-caption"></span></div><svg id="chart" viewBox="0 0 800 260" preserveAspectRatio="none" aria-label="Score trend chart"></svg></section>
+    <section class="panel"><div class="panel-title"><h2>Recent runs</h2></div><div class="table-wrap"><table><thead><tr><th>When</th><th>Scenario</th><th>Score</th><th>Accuracy</th><th>Hits / misses</th><th>FPS</th></tr></thead><tbody id="runs"></tbody></table></div></section>
+  </main><script src="app.js"></script>
+</body>
+</html>
