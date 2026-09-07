@@ -7,7 +7,7 @@ const format = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 const dateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 // Fixed category -> hue assignment (validated for the dark panel surface).
 // Runs outside the benchmark are "Other" and get pattern encoding instead of a color slot.
-const CATEGORY_COLORS = { Clicking: "#3987e5", Tracking: "#d95926", Switching: "#199e70" };
+const CATEGORY_COLORS = { Clicking: "#f29a9a", Tracking: "#92b1e6", Switching: "#bba1ec" };
 const OTHER_COLOR = "#99aaa8";
 
 function clean(value, suffix = "") { return value == null ? "—" : `${format.format(value)}${suffix}`; }
@@ -45,6 +45,106 @@ function recapHTML() {
   return [...CATEGORIES, "Other"].filter((name) => played.has(name)).map((name) => {
     const subs = subcategoriesOf(name).filter((sub) => played.get(name).has(sub));
     return `<div class="recap-row"><span class="chips"><span class="dot" style="background:${colorOf({ category: name })}"></span><span class="cat${name === "Other" ? " muted" : ""}">${name === "Other" ? "Other scenarios" : name}</span>${subs.map((sub) => `<span class="sub">${sub}</span>`).join("")}</span></div>`;
+  }).join("");
+}
+
+// ---- Today's recommendation ----
+// Recommends 2 Intermediate S5 scenarios per category that were NOT played
+// yesterday. Prefers never-played / stale scenarios and spreads picks across
+// different subcategories. Novice scenarios are intentionally excluded.
+const INTERMEDIATE_CATEGORIES = ["Clicking", "Tracking", "Switching"];
+const DAY_MS = 86400000;
+
+function localMidnight(date) { const d = new Date(date); d.setHours(0, 0, 0, 0); return d; }
+function startOfToday() { return localMidnight(new Date()).getTime(); }
+function startOfYesterday() { return localMidnight(new Date(Date.now() - DAY_MS)).getTime(); }
+
+// Map of subcategories practiced on a given local-midnight date, by category.
+function coveredOn(dateKey) {
+  const seen = new Map();
+  for (const run of allRecords) {
+    if (!run.timestamp) continue;
+    if (localMidnight(new Date(run.timestamp)).getTime() !== dateKey) continue;
+    if (!seen.has(run.category)) seen.set(run.category, new Set());
+    if (run.subcategory) seen.get(run.category).add(run.subcategory);
+  }
+  return seen;
+}
+
+// Timestamp (ms) of a scenario's most recent play, or null if never played.
+function lastPlayedAt(scenario) {
+  let latest = null;
+  for (const run of allRecords) {
+    if (run.scenario !== scenario || !run.timestamp) continue;
+    const t = new Date(run.timestamp).getTime();
+    if (latest === null || t > latest) latest = t;
+  }
+  return latest;
+}
+
+// Whether a scenario has any record on a given local-midnight date.
+function scenarioPlayedOn(scenario, dateKey) {
+  for (const run of allRecords) {
+    if (run.scenario !== scenario || !run.timestamp) continue;
+    if (localMidnight(new Date(run.timestamp)).getTime() === dateKey) return true;
+  }
+  return false;
+}
+
+function recommendCategory(category) {
+  const yesterdayKey = startOfYesterday();
+  // Group this category's Intermediate scenarios by subcategory.
+  const bySub = new Map();
+  for (const [scenario, item] of Object.entries(INTERMEDIATE_SCENARIOS)) {
+    if (item.category !== category) continue;
+    if (!bySub.has(item.subcategory)) bySub.set(item.subcategory, []);
+    bySub.get(item.subcategory).push(scenario);
+  }
+  const candidates = [];
+  for (const [sub, list] of bySub) {
+    for (const scenario of list) {
+      const last = lastPlayedAt(scenario);
+      candidates.push({ scenario, sub, last, playedYesterday: scenarioPlayedOn(scenario, yesterdayKey) });
+    }
+  }
+  // Prefer scenarios not played yesterday, then never-played / stale, then name.
+  candidates.sort((a, b) => {
+    if (a.playedYesterday !== b.playedYesterday) return a.playedYesterday ? 1 : -1;
+    const aLast = a.last === null ? -Infinity : a.last;
+    const bLast = b.last === null ? -Infinity : b.last;
+    if (aLast !== bLast) return aLast - bLast;
+    return a.scenario.localeCompare(b.scenario);
+  });
+  // Only suggest scenarios the user did NOT play yesterday; if a whole category
+  // was covered yesterday, fall back to the full ranked list.
+  const pool = candidates.filter((c) => !c.playedYesterday);
+  const usable = pool.length >= 2 ? pool : candidates;
+  // Pick 2, preferring two distinct subcategories.
+  const picked = [];
+  for (const c of usable) {
+    if (!picked.length) { picked.push(c); continue; }
+    if (picked.length >= 2) break;
+    if (c.sub !== picked[0].sub) { picked.push(c); break; }
+  }
+  if (picked.length < 2) {
+    for (const c of usable) {
+      if (!picked.includes(c)) { picked.push(c); if (picked.length >= 2) break; }
+    }
+  }
+  const nowKey = startOfToday();
+  return picked.map((p) => {
+    const reason = p.last === null ? "Never played"
+      : p.playedYesterday ? "Coverage gap"
+      : `Not played in ${Math.max(1, Math.round((nowKey - p.last) / DAY_MS))} days`;
+    return { scenario: p.scenario, sub: p.sub, reason };
+  });
+}
+
+function renderRecommendations() {
+  $("#recommend").innerHTML = INTERMEDIATE_CATEGORIES.map((cat) => {
+    const color = CATEGORY_COLORS[cat];
+    const picks = recommendCategory(cat);
+    return `<div class="rec-cat"><div class="rec-cat-head"><span class="dot" style="background:${color}"></span><span class="cat" style="color:${color}">${cat}</span></div><div class="rec-list">${picks.map((p) => `<div class="rec-item"><span class="rec-sub">${p.sub}</span><span class="rec-name">${p.scenario}</span><small class="rec-reason">${p.reason}</small></div>`).join("")}</div></div>`;
   }).join("");
 }
 
@@ -101,6 +201,7 @@ function render() {
   // Yesterday's recap is fixed to the previous day and independent of the
   // filters above: it answers "what did I practice", not "what matches".
   $("#recap").innerHTML = recapHTML();
+  renderRecommendations();
   draw(records.slice(0, 40).reverse());
 }
 
@@ -151,6 +252,7 @@ async function load() {
   $("#refresh").disabled = false;
 }
 $("#refresh").addEventListener("click", load);
+$("#refresh-rec").addEventListener("click", renderRecommendations);
 $("#scenario").addEventListener("change", render);
 $("#category").addEventListener("change", () => {
   category = $("#category").value;

@@ -7,10 +7,11 @@
 <body>
   <main>
     <header><div><p class="eyebrow">KOVAAK'S LOCAL STATS</p><h1>Aim tracker</h1><p id="source">Loading your records…</p></div><button id="refresh">Refresh records</button></header>
+    <section class="panel"><div class="panel-title"><h2>Yesterday's recap</h2></div><div id="recap" class="recap"></div></section>
+    <section class="panel"><div class="panel-title"><h2>Today's recommendation</h2><span>2 per category · not played yesterday · Intermediate S5</span><button id="refresh-rec">Regenerate</button></div><div id="recommend" class="rec"></div></section>
     <section class="controls"><div class="filters"><label>Scenario <select id="scenario"><option value="">All scenarios</option></select></label><label>Category <select id="category"><option value="">All categories</option></select></label><label>Subcategory <select id="subcategory"><option value="">All subcategories</option></select></label><div class="date-filter" role="group" aria-label="Date range"><button class="active" data-period="all">All time</button><button data-period="today">Today</button><button data-period="yesterday">Yesterday</button></div></div><span id="run-count"></span></section>
     <section class="cards" id="cards"></section>
     <section class="panel"><div class="panel-title"><h2>Score trend</h2><span id="trend-caption"></span></div><svg id="chart" viewBox="0 0 800 260" preserveAspectRatio="none" aria-label="Score trend chart"></svg><div class="legend" id="chart-legend"></div></section>
-    <section class="panel"><div class="panel-title"><h2>Yesterday's recap</h2></div><div id="recap" class="recap"></div></section>
   </main><script src="benchmarks.js"></script><script src="app.js"></script>
 </body>
 </html>

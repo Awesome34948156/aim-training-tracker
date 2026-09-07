@@ -18,7 +18,7 @@ const S5_BENCHMARK = {
     },
     Switching: {
       Speed: ["VT DotTS Intermediate S5", "VT EddieTS Intermediate S5"],
-      Evasive: ["VT DriftTS Intermediate S5", "VT FluTS Intermediate S5", "VT FlyTS Intermediate S5"],
+      Evasive: ["VT DriftTS Intermediate S5", "VT FlyTS Intermediate S5"],
       Stability: ["VT ControlTS Intermediate S5", "VT Penta Bounce Intermediate S5"],
     },
   },
@@ -48,6 +48,15 @@ for (const tiers of Object.values(S5_BENCHMARK)) {
     for (const [subcategory, scenarios] of Object.entries(subs)) {
       for (const scenario of scenarios) SCENARIO_CATEGORIES[scenario] = { category, subcategory };
     }
+  }
+}
+
+// Intermediate-only flat lookup, used by the "Today's recommendation" panel so
+// recommendations stay within a single tier (Novice is intentionally ignored).
+const INTERMEDIATE_SCENARIOS = {};
+for (const [category, subs] of Object.entries(S5_BENCHMARK.Intermediate)) {
+  for (const [subcategory, scenarios] of Object.entries(subs)) {
+    for (const scenario of scenarios) INTERMEDIATE_SCENARIOS[scenario] = { category, subcategory };
   }
 }
 
