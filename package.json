@@ -4,7 +4,7 @@
   "description": "Local Kovaak's aim training dashboard",
   "main": "server.js",
   "scripts": {
-    "build": "pkg server.js -c package.json --targets node24-win-x64 --output dist/AimTracker.exe",
+    "build": "pkg server.js -c package.json --targets node24-win-x64 --output dist/AimTracker.exe && node scripts/postbuild.js",
     "start": "node server.js"
   },
   "pkg": {
