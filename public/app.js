@@ -143,7 +143,8 @@ function recommendCategory(category) {
 function renderRecommendations() {
   $("#recommend").innerHTML = INTERMEDIATE_CATEGORIES.map((cat) => {
     const color = CATEGORY_COLORS[cat];
-    const picks = recommendCategory(cat);
+    const order = subcategoriesOf(cat);
+    const picks = recommendCategory(cat).slice().sort((a, b) => order.indexOf(a.sub) - order.indexOf(b.sub));
     return `<div class="rec-cat"><div class="rec-cat-head"><span class="dot" style="background:${color}"></span><span class="cat" style="color:${color}">${cat}</span></div><div class="rec-list">${picks.map((p) => `<div class="rec-item"><span class="rec-sub">${p.sub}</span><span class="rec-name">${p.scenario}</span><small class="rec-reason">${p.reason}</small></div>`).join("")}</div></div>`;
   }).join("");
 }
@@ -252,7 +253,6 @@ async function load() {
   $("#refresh").disabled = false;
 }
 $("#refresh").addEventListener("click", load);
-$("#refresh-rec").addEventListener("click", renderRecommendations);
 $("#scenario").addEventListener("change", render);
 $("#category").addEventListener("change", () => {
   category = $("#category").value;
