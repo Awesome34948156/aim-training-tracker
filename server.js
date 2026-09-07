@@ -3,9 +3,12 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const os = require("node:os");
 const fssync = require("node:fs");
+const { exec } = require("node:child_process");
 
 const PORT = Number(process.env.PORT || 4173);
-const configPath = path.join(__dirname, "config.json");
+// Save settings to a user-writable dir so it works both in dev and inside a packaged exe.
+const userDataDir = process.env.APPDATA ? path.join(process.env.APPDATA, "kovaaks-aim-tracker") : path.join(os.homedir(), ".kovaaks-aim-tracker");
+const configPath = path.join(userDataDir, "config.json");
 const publicDirectory = path.join(__dirname, "public");
 
 const DEFAULT_STATS_DIR =
@@ -22,8 +25,14 @@ let statsDirectory = (() => {
 
 async function saveConfig() {
   try {
+    await fs.mkdir(userDataDir, { recursive: true });
     await fs.writeFile(configPath, JSON.stringify({ statsDirectory }, null, 2), "utf8");
   } catch { /* ignore write errors */ }
+}
+
+function openBrowser(url) {
+  const command = process.platform === "win32" ? `start "" "${url}"` : process.platform === "darwin" ? `open "${url}"` : `xdg-open "${url}"`;
+  try { exec(command, { windowsHide: true }, () => {}); } catch { /* ignore */ }
 }
 
 function send(response, status, body, type = "application/json; charset=utf-8") {
@@ -162,4 +171,7 @@ http.createServer(async (request, response) => {
   } catch {
     return send(response, 404, "Not found", "text/plain");
   }
-}).listen(PORT, "127.0.0.1", () => console.log(`Aim tracker: http://localhost:${PORT}`));
+}).listen(PORT, "127.0.0.1", () => {
+  console.log(`Aim tracker: http://localhost:${PORT}`);
+  if (process.pkg) openBrowser(`http://localhost:${PORT}`);
+});

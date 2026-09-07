@@ -144,3 +144,7 @@ vite.config.ts.timestamp-*
 
 # Local app config: saved Kovaak's stats folder path
 config.json
+
+# Packaging build output (single-file exe) and dependencies
+dist/
+node_modules/

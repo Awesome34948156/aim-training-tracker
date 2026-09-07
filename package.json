@@ -1,0 +1,21 @@
+{
+  "name": "kovaaks-aim-tracker",
+  "version": "1.0.0",
+  "description": "Local Kovaak's aim training dashboard",
+  "main": "server.js",
+  "scripts": {
+    "build": "pkg server.js -c package.json --targets node24-win-x64 --output dist/AimTracker.exe",
+    "start": "node server.js"
+  },
+  "pkg": {
+    "assets": [
+      "public/**/*"
+    ],
+    "targets": [
+      "node24-win-x64"
+    ]
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0"
+  }
+}
