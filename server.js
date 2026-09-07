@@ -35,6 +35,17 @@ function openBrowser(url) {
   try { exec(command, { windowsHide: true }, () => {}); } catch { /* ignore */ }
 }
 
+// Auto-quit when no browser tab is open (packaged exe only). The page sends a
+// /api/heartbeat while open, and a "closed" beacon on pagehide; when no pages
+// remain (or none ever connected) the process kills itself.
+const startTime = Date.now();
+const clients = new Map();         // heartbeat id -> last seen (ms)
+let everConnected = false;
+let lastEmptyAt = null;
+const HEARTBEAT_TIMEOUT_MS = 90000; // prune a stale page after this (survives background throttling)
+const QUIT_GRACE_MS = 2000;         // wait for a refresh before quitting
+const NO_CONNECT_QUIT_MS = 30000;   // give up if no page ever connects
+
 function send(response, status, body, type = "application/json; charset=utf-8") {
   response.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store" });
   response.end(body);
@@ -161,6 +172,23 @@ http.createServer(async (request, response) => {
     return send(response, 200, JSON.stringify(data));
   }
 
+  if (requestPath === "/api/heartbeat") {
+    let id = "", closed = false;
+    try {
+      const parsed = JSON.parse(await readBody(request));
+      id = (parsed && parsed.id) || "";
+      closed = Boolean(parsed && parsed.closed);
+    } catch { /* empty/invalid body */ }
+    if (closed) {
+      if (id) clients.delete(id);
+    } else if (id) {
+      clients.set(id, Date.now());
+      everConnected = true;
+      lastEmptyAt = null;
+    }
+    return send(response, 200, "{}");
+  }
+
   const file = requestPath === "/" ? "index.html" : requestPath.slice(1);
   const filePath = path.resolve(publicDirectory, file);
   if (!filePath.startsWith(publicDirectory)) return send(response, 403, "Forbidden", "text/plain");
@@ -175,3 +203,19 @@ http.createServer(async (request, response) => {
   console.log(`Aim tracker: http://localhost:${PORT}`);
   if (process.pkg) openBrowser(`http://localhost:${PORT}`);
 });
+
+// Packaged exe only: kill the process once no browser tab is open.
+if (process.pkg) {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [id, seen] of clients) if (now - seen > HEARTBEAT_TIMEOUT_MS) clients.delete(id);
+    if (clients.size === 0) {
+      if (lastEmptyAt === null) lastEmptyAt = now;
+      if ((everConnected && now - lastEmptyAt > QUIT_GRACE_MS) || (!everConnected && now - startTime > NO_CONNECT_QUIT_MS)) {
+        process.exit(0);
+      }
+    } else {
+      lastEmptyAt = null;
+    }
+  }, 1000);
+}

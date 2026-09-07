@@ -384,3 +384,27 @@ document.querySelectorAll("[data-period]").forEach((button) => button.addEventLi
   render();
 }));
 load();
+
+// Heartbeat: keeps the packaged exe alive while this tab is open. On pagehide
+// we beacon "closed" so the exe can quit. Uses a per-tab id so multiple tabs and
+// page refreshes don't falsely close the app.
+let hbId = sessionStorage.getItem("kovaaks-hb-id");
+if (!hbId) {
+  hbId = Math.random().toString(36).slice(2);
+  sessionStorage.setItem("kovaaks-hb-id", hbId);
+}
+async function heartbeat() {
+  try {
+    await fetch("/api/heartbeat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: hbId }),
+      keepalive: true
+    });
+  } catch { /* ignore */ }
+}
+heartbeat();
+setInterval(heartbeat, 5000);
+window.addEventListener("pagehide", () => {
+  try { navigator.sendBeacon("/api/heartbeat", JSON.stringify({ id: hbId, closed: true })); } catch { /* ignore */ }
+});
