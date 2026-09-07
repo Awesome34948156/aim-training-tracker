@@ -28,6 +28,26 @@ function filtered() {
   });
 }
 
+// Recap of the areas trained yesterday: one row per category (Clicking,
+// Tracking, Switching, Other last), subcategory chips in canonical order.
+function recapHTML() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const played = new Map(); // category -> Set(subcategory)
+  for (const run of allRecords) {
+    if (!run.timestamp) continue;
+    const runDate = new Date(run.timestamp); runDate.setHours(0, 0, 0, 0);
+    if (runDate.getTime() !== yesterday.getTime()) continue;
+    if (!played.has(run.category)) played.set(run.category, new Set());
+    if (run.subcategory) played.get(run.category).add(run.subcategory);
+  }
+  if (!played.size) return `<p class="recap-empty">No runs yesterday.</p>`;
+  return [...CATEGORIES, "Other"].filter((name) => played.has(name)).map((name) => {
+    const subs = subcategoriesOf(name).filter((sub) => played.get(name).has(sub));
+    return `<div class="recap-row"><span class="chips"><span class="dot" style="background:${colorOf({ category: name })}"></span><span class="cat${name === "Other" ? " muted" : ""}">${name === "Other" ? "Other scenarios" : name}</span>${subs.map((sub) => `<span class="sub">${sub}</span>`).join("")}</span></div>`;
+  }).join("");
+}
+
 // Scenario options = played scenarios plus benchmark scenarios matching the
 // category/subcategory filter, so the whole benchmark stays browsable even
 // before every scenario has been played.
@@ -78,10 +98,9 @@ function render() {
     card("Average accuracy", records.length ? clean(accuracy * 100, "%") : "—", "Across recorded hits and misses"),
     card("Latest average FPS", clean(latest?.avgFps), latest?.scenario || "—"),
   ].join("");
-  $("#runs").innerHTML = records.slice(0, 20).map((run) => {
-    const chips = `<span class="chips"><span class="dot" style="background:${colorOf(run)}"></span><span class="cat${isBenchmark(run) ? "" : " muted"}">${run.category}</span>${run.subcategory ? `<span class="sub">${run.subcategory}</span>` : ""}</span>`;
-    return `<tr><td>${run.timestamp ? dateFormat.format(new Date(run.timestamp)) : "—"}</td><td>${run.scenario}</td><td>${chips}</td><td>${clean(run.score)}</td><td>${clean(run.accuracy == null ? null : run.accuracy * 100, "%")}</td><td>${clean(run.hits, "")} / ${clean(run.misses, "")}</td><td>${clean(run.avgFps)}</td></tr>`;
-  }).join("") || `<tr><td colspan="7">No runs match these filters.</td></tr>`;
+  // Yesterday's recap is fixed to the previous day and independent of the
+  // filters above: it answers "what did I practice", not "what matches".
+  $("#recap").innerHTML = recapHTML();
   draw(records.slice(0, 40).reverse());
 }
 

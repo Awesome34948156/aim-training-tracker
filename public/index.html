@@ -10,7 +10,7 @@
     <section class="controls"><div class="filters"><label>Scenario <select id="scenario"><option value="">All scenarios</option></select></label><label>Category <select id="category"><option value="">All categories</option></select></label><label>Subcategory <select id="subcategory"><option value="">All subcategories</option></select></label><div class="date-filter" role="group" aria-label="Date range"><button class="active" data-period="all">All time</button><button data-period="today">Today</button><button data-period="yesterday">Yesterday</button></div></div><span id="run-count"></span></section>
     <section class="cards" id="cards"></section>
     <section class="panel"><div class="panel-title"><h2>Score trend</h2><span id="trend-caption"></span></div><svg id="chart" viewBox="0 0 800 260" preserveAspectRatio="none" aria-label="Score trend chart"></svg><div class="legend" id="chart-legend"></div></section>
-    <section class="panel"><div class="panel-title"><h2>Recent runs</h2></div><div class="table-wrap"><table><thead><tr><th>When</th><th>Scenario</th><th>Category</th><th>Score</th><th>Accuracy</th><th>Hits / misses</th><th>FPS</th></tr></thead><tbody id="runs"></tbody></table></div></section>
+    <section class="panel"><div class="panel-title"><h2>Yesterday's recap</h2></div><div id="recap" class="recap"></div></section>
   </main><script src="benchmarks.js"></script><script src="app.js"></script>
 </body>
 </html>
