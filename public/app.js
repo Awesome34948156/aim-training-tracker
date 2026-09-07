@@ -13,6 +13,10 @@ const OTHER_COLOR = "#99aaa8";
 function clean(value, suffix = "") { return value == null ? "—" : `${format.format(value)}${suffix}`; }
 function colorOf(run) { return CATEGORY_COLORS[run.category] || OTHER_COLOR; }
 function isBenchmark(run) { return Boolean(CATEGORY_COLORS[run.category]); }
+// Steam play link that launches Kovaak's straight into a scenario in challenge mode.
+function scenarioPlayLink(scenario) {
+  return `steam://run/824270/?action=jump-to-scenario;name=${encodeURIComponent(scenario)};mode=challenge`;
+}
 
 function filtered() {
   const scenarioName = $("#scenario").value;
@@ -140,12 +144,49 @@ function recommendCategory(category) {
   });
 }
 
+// The day's recommendation list is frozen on the first load of the day, so
+// playing a recommended scenario doesn't reshuffle the list. Items already
+// played today are shown struck through.
+function localDateKey(date = new Date()) {
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${m}-${d}`;
+}
+
+function frozenRecommendations() {
+  const key = `recommendations-${localDateKey()}`;
+  let cached = null;
+  try { cached = localStorage.getItem(key); } catch { /* storage unavailable */ }
+  if (cached) {
+    try { return JSON.parse(cached); } catch { /* malformed; recompute below */ }
+  }
+  const picks = {};
+  for (const cat of INTERMEDIATE_CATEGORIES) {
+    const order = subcategoriesOf(cat);
+    picks[cat] = recommendCategory(cat).slice().sort((a, b) => order.indexOf(a.sub) - order.indexOf(b.sub));
+  }
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const existing = localStorage.key(i);
+      if (existing && existing.startsWith("recommendations-") && existing !== key) {
+        localStorage.removeItem(existing);
+      }
+    }
+    localStorage.setItem(key, JSON.stringify(picks));
+  } catch { /* storage unavailable; still render this day's picks */ }
+  return picks;
+}
+
 function renderRecommendations() {
+  const picks = frozenRecommendations();
+  const todayKey = startOfToday();
   $("#recommend").innerHTML = INTERMEDIATE_CATEGORIES.map((cat) => {
     const color = CATEGORY_COLORS[cat];
-    const order = subcategoriesOf(cat);
-    const picks = recommendCategory(cat).slice().sort((a, b) => order.indexOf(a.sub) - order.indexOf(b.sub));
-    return `<div class="rec-cat"><div class="rec-cat-head"><span class="dot" style="background:${color}"></span><span class="cat" style="color:${color}">${cat}</span></div><div class="rec-list">${picks.map((p) => `<div class="rec-item"><span class="rec-sub">${p.sub}</span><span class="rec-name">${p.scenario}</span><small class="rec-reason">${p.reason}</small></div>`).join("")}</div></div>`;
+    const items = (picks[cat] || []).map((p) => {
+      const played = scenarioPlayedOn(p.scenario, todayKey);
+      return `<div class="rec-item${played ? " done" : ""}"><span class="rec-sub">${p.sub}</span><span class="rec-name">${p.scenario}</span><small class="rec-reason">${played ? "Played today" : p.reason}</small><a class="rec-play" href="${scenarioPlayLink(p.scenario)}" title="Play ${p.scenario} in Kovaak's" aria-label="Play ${p.scenario} in Kovaak's">▶</a></div>`;
+    }).join("");
+    return `<div class="rec-cat"><div class="rec-cat-head"><span class="dot" style="background:${color}"></span><span class="cat" style="color:${color}">${cat}</span></div><div class="rec-list">${items}</div></div>`;
   }).join("");
 }
 
