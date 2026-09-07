@@ -290,9 +290,81 @@ async function load() {
     populateScenarioOptions();
     $("#source").textContent = `${allRecords.length} runs read directly from ${data.statsDirectory}`;
     render();
-  } catch (error) { $("#source").textContent = error.message; }
+    hideSetup();
+  } catch (error) { $("#source").textContent = error.message; showSetup(); }
   $("#refresh").disabled = false;
 }
+// ---- Stats folder setup (shown on first run / when the folder is unreadable) ----
+const SETUP = { path: null };
+const STEAM_DEFAULT = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\FPSAimTrainer\\FPSAimTrainer\\stats";
+const STEAM_D = "D:\\Steam\\steamapps\\common\\FPSAimTrainer\\FPSAimTrainer\\stats";
+
+function joinPath(base, name) { return base.replace(/[\\/]+$/, "") + "\\" + name; }
+function showSetup() { $("#setup").hidden = false; loadConfigAndBrowse(); }
+function hideSetup() { $("#setup").hidden = true; }
+
+async function loadConfigAndBrowse() {
+  let current = "";
+  try {
+    const res = await fetch("/api/config"); const data = await res.json();
+    current = data.statsDirectory || "";
+  } catch { /* ignore */ }
+  $("#setup-path-input").value = current;
+  browseTo(current || null);
+}
+
+async function browseTo(path) {
+  const query = path ? `?path=${encodeURIComponent(path)}` : "";
+  let data;
+  try { const res = await fetch(`/api/browse${query}`); data = await res.json(); } catch { data = null; }
+  if (!data) {
+    $("#setup-status").textContent = "Could not browse that folder.";
+    $("#setup-status").className = "setup-status err";
+    return;
+  }
+  SETUP.path = data.path;
+  $("#setup-current").textContent = data.path;
+  $("#setup-current").title = data.path;
+  const list = $("#setup-list");
+  list.innerHTML = "";
+  if (data.parent) list.appendChild(dirButton("..", data.parent));
+  for (const name of data.dirs) list.appendChild(dirButton(name, joinPath(data.path, name)));
+  $("#setup-select").disabled = !data.exists;
+  const status = $("#setup-status");
+  if (data.hasStats) { status.textContent = "✓ Kovaak's stats detected here"; status.className = "setup-status ok"; }
+  else if (data.exists) { status.textContent = "Folder found, but no Stats.csv yet"; status.className = "setup-status"; }
+  else { status.textContent = "Folder not found"; status.className = "setup-status err"; }
+}
+
+function dirButton(label, full) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "setup-dir"; b.textContent = label;
+  b.addEventListener("click", () => browseTo(full));
+  return b;
+}
+
+async function selectSetup() {
+  if (!SETUP.path) return;
+  const status = $("#setup-status");
+  status.textContent = "Saving…"; status.className = "setup-status";
+  try {
+    const res = await fetch("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ directory: SETUP.path }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "Could not save that folder.");
+    hideSetup();
+    load();
+  } catch (error) { status.textContent = error.message; status.className = "setup-status err"; }
+}
+
+$("#set-folder").addEventListener("click", showSetup);
+$("#setup-cancel").addEventListener("click", hideSetup);
+$("#setup-go").addEventListener("click", () => browseTo($("#setup-path-input").value));
+$("#setup-path-input").addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); browseTo($("#setup-path-input").value); } });
+$("#setup-home").addEventListener("click", () => browseTo(null));
+$("#setup-steam").addEventListener("click", () => browseTo(STEAM_DEFAULT));
+$("#setup-steam-d").addEventListener("click", () => browseTo(STEAM_D));
+$("#setup-select").addEventListener("click", selectSetup);
+
 $("#refresh").addEventListener("click", load);
 $("#scenario").addEventListener("change", render);
 $("#category").addEventListener("change", () => {

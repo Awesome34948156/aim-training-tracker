@@ -6,12 +6,35 @@
 </head>
 <body>
   <main>
-    <header><div><p class="eyebrow">KOVAAK'S LOCAL STATS</p><h1>Aim tracker</h1><p id="source">Loading your records…</p></div><button id="refresh">Refresh records</button></header>
+    <header><div><p class="eyebrow">KOVAAK'S LOCAL STATS</p><h1>Aim tracker</h1><p id="source">Loading your records…</p></div><div class="header-actions"><button id="set-folder" class="ghost" type="button">Set folder</button><button id="refresh">Refresh records</button></div></header>
     <section class="panel"><div class="panel-title"><h2>Yesterday's recap</h2></div><div id="recap" class="recap"></div></section>
     <section class="panel"><div class="panel-title"><h2>Today's recommendation</h2><span>2 per category · not played yesterday · Intermediate S5</span></div><div id="recommend" class="rec"></div></section>
     <section class="controls"><div class="filters"><select id="scenario"><option value="">All scenarios</option></select><select id="category"><option value="">All categories</option></select><select id="subcategory"><option value="">All subcategories</option></select><div class="date-filter" role="group" aria-label="Date range"><button class="active" data-period="all">All time</button><button data-period="today">Today</button><button data-period="yesterday">Yesterday</button></div></div><span id="run-count"></span></section>
     <section class="cards" id="cards"></section>
     <section class="panel"><div class="panel-title"><h2>Score trend</h2><span id="trend-caption"></span></div><svg id="chart" viewBox="0 0 800 260" preserveAspectRatio="none" aria-label="Score trend chart"></svg><div class="legend" id="chart-legend"></div></section>
-  </main><script src="benchmarks.js"></script><script src="app.js"></script>
+  </main>
+  <div id="setup" class="setup-overlay" hidden>
+    <div class="setup-card">
+      <h2>Find your Kovaak's stats folder</h2>
+      <p class="setup-hint">The tracker reads your <code>... Stats.csv</code> records. Pick the folder that contains them.</p>
+      <div class="setup-path">
+        <input id="setup-path-input" type="text" spellcheck="false" autocomplete="off" />
+        <button id="setup-go" class="ghost" type="button">Go</button>
+      </div>
+      <div class="setup-tools">
+        <button id="setup-home" class="ghost" type="button">Home</button>
+        <button id="setup-steam" class="ghost" type="button">Steam default</button>
+        <button id="setup-steam-d" class="ghost" type="button">D: Steam</button>
+      </div>
+      <p id="setup-current" class="setup-current"></p>
+      <div id="setup-list" class="setup-list"></div>
+      <div class="setup-actions">
+        <button id="setup-select" type="button" disabled>Use this folder</button>
+        <button id="setup-cancel" class="ghost" type="button">Cancel</button>
+      </div>
+      <p id="setup-status" class="setup-status"></p>
+    </div>
+  </div>
+  <script src="benchmarks.js"></script><script src="app.js"></script>
 </body>
 </html>
