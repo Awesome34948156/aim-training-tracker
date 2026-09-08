@@ -148,3 +148,6 @@ config.json
 # Packaging build output (single-file exe) and dependencies
 dist/
 node_modules/
+
+# Claude Code local data (worktrees, session files)
+.claude/
