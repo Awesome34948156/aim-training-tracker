@@ -47,7 +47,13 @@ const QUIT_GRACE_MS = 2000;         // wait for a refresh before quitting
 const NO_CONNECT_QUIT_MS = 30000;   // give up if no page ever connects
 
 function send(response, status, body, type = "application/json; charset=utf-8") {
-  response.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store" });
+  response.writeHead(status, {
+    "Content-Type": type,
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+  });
   response.end(body);
 }
 
@@ -191,7 +197,8 @@ http.createServer(async (request, response) => {
 
   const file = requestPath === "/" ? "index.html" : requestPath.slice(1);
   const filePath = path.resolve(publicDirectory, file);
-  if (!filePath.startsWith(publicDirectory)) return send(response, 403, "Forbidden", "text/plain");
+  const relative = path.relative(publicDirectory, filePath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) return send(response, 403, "Forbidden", "text/plain");
   try {
     const content = await fs.readFile(filePath);
     const type = file.endsWith(".js") ? "text/javascript; charset=utf-8" : file.endsWith(".css") ? "text/css; charset=utf-8" : "text/html; charset=utf-8";

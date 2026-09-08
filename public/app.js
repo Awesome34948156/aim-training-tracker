@@ -11,6 +11,16 @@ const CATEGORY_COLORS = { Clicking: "#f29a9a", Tracking: "#92b1e6", Switching: "
 const OTHER_COLOR = "#99aaa8";
 
 function clean(value, suffix = "") { return value == null ? "—" : `${format.format(value)}${suffix}`; }
+// CSV-derived strings (scenario/category/subcategory) are rendered as HTML, so
+// escape them to avoid injecting markup from a crafted or corrupt record file.
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 function colorOf(run) { return CATEGORY_COLORS[run.category] || OTHER_COLOR; }
 function isBenchmark(run) { return Boolean(CATEGORY_COLORS[run.category]); }
 // Steam play link that launches Kovaak's straight into a scenario in challenge mode.
@@ -48,7 +58,7 @@ function recapHTML() {
   if (!played.size) return `<p class="recap-empty">No runs yesterday.</p>`;
   return [...CATEGORIES, "Other"].filter((name) => played.has(name)).map((name) => {
     const subs = subcategoriesOf(name).filter((sub) => played.get(name).has(sub));
-    return `<div class="recap-row"><span class="chips"><span class="dot" style="background:${colorOf({ category: name })}"></span><span class="cat${name === "Other" ? " muted" : ""}">${name === "Other" ? "Other scenarios" : name}</span>${subs.map((sub) => `<span class="sub">${sub}</span>`).join("")}</span></div>`;
+    return `<div class="recap-row"><span class="chips"><span class="dot" style="background:${colorOf({ category: name })}"></span><span class="cat${name === "Other" ? " muted" : ""}">${name === "Other" ? "Other scenarios" : escapeHtml(name)}</span>${subs.map((sub) => `<span class="sub">${escapeHtml(sub)}</span>`).join("")}</span></div>`;
   }).join("");
 }
 
@@ -184,7 +194,7 @@ function renderRecommendations() {
     const color = CATEGORY_COLORS[cat];
     const items = (picks[cat] || []).map((p) => {
       const played = scenarioPlayedOn(p.scenario, todayKey);
-      return `<div class="rec-item${played ? " done" : ""}"><span class="rec-sub">${p.sub}</span><span class="rec-name">${p.scenario}</span><small class="rec-reason">${played ? "Played today" : p.reason}</small><a class="rec-play" href="${scenarioPlayLink(p.scenario)}" title="Play ${p.scenario} in Kovaak's" aria-label="Play ${p.scenario} in Kovaak's">▶</a></div>`;
+      return `<div class="rec-item${played ? " done" : ""}"><span class="rec-sub">${escapeHtml(p.sub)}</span><span class="rec-name">${escapeHtml(p.scenario)}</span><small class="rec-reason">${played ? "Played today" : escapeHtml(p.reason)}</small><a class="rec-play" href="${scenarioPlayLink(p.scenario)}" title="Play ${escapeHtml(p.scenario)} in Kovaak's" aria-label="Play ${escapeHtml(p.scenario)} in Kovaak's">▶</a></div>`;
     }).join("");
     return `<div class="rec-cat"><div class="rec-cat-head"><span class="dot" style="background:${color}"></span><span class="cat" style="color:${color}">${cat}</span></div><div class="rec-list">${items}</div></div>`;
   }).join("");
@@ -209,7 +219,7 @@ function scenarioOptions() {
 
 function populateScenarioOptions() {
   const current = $("#scenario").value;
-  $("#scenario").innerHTML = `<option value="">All scenarios</option>${scenarioOptions().map((name) => `<option ${name === current ? "selected" : ""}>${name}</option>`).join("")}`;
+  $("#scenario").innerHTML = `<option value="">All scenarios</option>${scenarioOptions().map((name) => `<option ${name === current ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}`;
 }
 
 function populateCategoryOptions() {
@@ -225,19 +235,25 @@ function populateSubcategories() {
   $("#subcategory").innerHTML = `<option value="">All subcategories</option>${subs.map((name) => `<option ${name === subcategory ? "selected" : ""}>${name}</option>`).join("")}`;
 }
 
-function card(label, value, detail) { return `<article><p>${label}</p><strong>${value}</strong><small>${detail}</small></article>`; }
+function card(label, value, detail) { return `<article><p>${label}</p><strong>${value}</strong><small>${escapeHtml(detail)}</small></article>`; }
+
+function averageAccuracy(records) {
+  const valid = records.filter((run) => run.accuracy != null);
+  if (!valid.length) return null;
+  return valid.reduce((sum, run) => sum + run.accuracy, 0) / valid.length;
+}
 
 function render() {
   const records = filtered();
   const latest = records[0];
   const best = records.reduce((current, run) => Math.max(current, run.score ?? -Infinity), -Infinity);
-  const accuracy = records.filter((run) => run.accuracy != null).reduce((sum, run, _, list) => sum + run.accuracy / list.length, 0);
+  const accuracy = averageAccuracy(records);
   const scope = subcategory || category || $("#scenario").value || "Across all scenarios";
   $("#run-count").textContent = `${records.length} recorded runs`;
   $("#cards").innerHTML = [
     card("Latest score", clean(latest?.score), latest?.timestamp ? dateFormat.format(new Date(latest.timestamp)) : "No data"),
     card("Personal best", best > -Infinity ? clean(best) : "—", scope),
-    card("Average accuracy", records.length ? clean(accuracy * 100, "%") : "—", "Across recorded hits and misses"),
+    card("Average accuracy", accuracy == null ? "—" : clean(accuracy * 100, "%"), "Across recorded hits and misses"),
     card("Latest average FPS", clean(latest?.avgFps), latest?.scenario || "—"),
   ].join("");
   // Yesterday's recap is fixed to the previous day and independent of the
@@ -268,14 +284,14 @@ function draw(records) {
   const circles = records.map((run, index) => {
     const isOther = !isBenchmark(run);
     const fill = isOther ? `style="fill:var(--panel);stroke:${OTHER_COLOR};stroke-width:2"` : `fill="${colorOf(run)}"`;
-    return `<circle cx="${x(index)}" cy="${scaleY(run.score ?? low)}" r="4" ${fill}><title>${run.scenario} · ${run.category}${run.subcategory ? " / " + run.subcategory : ""}: ${clean(run.score)}</title></circle>`;
+    return `<circle cx="${x(index)}" cy="${scaleY(run.score ?? low)}" r="4" ${fill}><title>${escapeHtml(run.scenario)} · ${escapeHtml(run.category)}${run.subcategory ? " / " + escapeHtml(run.subcategory) : ""}: ${clean(run.score)}</title></circle>`;
   }).join("");
   const polylines = segments.map((segment) => `<polyline points="${segment.points.join(" ")}"${segment.color === OTHER_COLOR ? ` stroke-dasharray="5 5"` : ""} style="stroke:${segment.color}"/>`).join("");
   svg.innerHTML = `<line x1="30" y1="230" x2="770" y2="230"/><line x1="30" y1="30" x2="30" y2="230"/>${polylines}${circles}`;
   const used = [...new Set(records.map((run) => run.category))];
   $("#chart-legend").innerHTML = used.map((name) => {
     const color = CATEGORY_COLORS[name] || OTHER_COLOR;
-    return `<span class="legend-item"><i class="${color === OTHER_COLOR ? "legend-dash" : ""}" style="background:${color}"></i>${name}</span>`;
+    return `<span class="legend-item"><i class="${color === OTHER_COLOR ? "legend-dash" : ""}" style="background:${color}"></i>${escapeHtml(name)}</span>`;
   }).join("");
   $("#trend-caption").textContent = `${records.length} most recent runs · ${clean(low)}–${clean(high)}`;
 }
