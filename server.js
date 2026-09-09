@@ -191,7 +191,8 @@ http.createServer(async (request, response) => {
 
   const file = requestPath === "/" ? "index.html" : requestPath.slice(1);
   const filePath = path.resolve(publicDirectory, file);
-  if (!filePath.startsWith(publicDirectory)) return send(response, 403, "Forbidden", "text/plain");
+  const relativePath = path.relative(publicDirectory, filePath);
+  if (relativePath.startsWith(".." + path.sep) || path.isAbsolute(relativePath)) return send(response, 403, "Forbidden", "text/plain");
   try {
     const content = await fs.readFile(filePath);
     const type = file.endsWith(".js") ? "text/javascript; charset=utf-8" : file.endsWith(".css") ? "text/css; charset=utf-8" : "text/html; charset=utf-8";
