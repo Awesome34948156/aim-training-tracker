@@ -301,6 +301,16 @@ const STEAM_D = "D:\\Steam\\steamapps\\common\\FPSAimTrainer\\FPSAimTrainer\\sta
 
 function joinPath(base, name) { return base.replace(/[\\/]+$/, "") + "\\" + name; }
 function showSetup() { $("#setup").hidden = false; loadConfigAndBrowse(); }
+
+let lastReturnRefresh = 0;
+function refreshOnReturn() {
+  if (document.visibilityState === "hidden") return;
+  const now = Date.now();
+  if (now - lastReturnRefresh < 1500) return;
+  lastReturnRefresh = now;
+  load();
+}
+
 function hideSetup() { $("#setup").hidden = true; }
 
 async function loadConfigAndBrowse() {
@@ -384,6 +394,8 @@ document.querySelectorAll("[data-period]").forEach((button) => button.addEventLi
   render();
 }));
 load();
+document.addEventListener("visibilitychange", refreshOnReturn);
+window.addEventListener("focus", refreshOnReturn);
 
 // Heartbeat: keeps the packaged exe alive while this tab is open. On pagehide
 // we beacon "closed" so the exe can quit. Uses a per-tab id so multiple tabs and
